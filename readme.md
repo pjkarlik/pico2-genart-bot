@@ -2,7 +2,7 @@
 
 A small autonomous generative-art project using a **Raspberry Pi Pico 2 W** to create procedural artwork, upload the resulting images to a local web gallery, and automatically post them to **Bluesky**.
 
-<img src="splash.jpg" width=640px>
+<img src="./splash01.jpg" width=640px>
 The goal is simple: let the hardware continuously create random artwork and occasionally share it with the world.
 
 ## How It Works
