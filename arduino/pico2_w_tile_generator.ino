@@ -14,14 +14,51 @@ WiFiClient client;
 
 Adafruit_GC9A01A tft(&SPI, 16, 17, 20);
 
+
+int width = 240;
+int height = 240;
+
+
+float t = 0;
+int range = 14;                     // the value used to determin one quadrant 32/16 - 8 usualy too small
+int rhlf  = range/2;                // half the range
+int h = height;
+int w = width;
+int hh = h / range;
+int ww = w / range;
+int ow = (w-(ww*range))/2;
+int oh = (h-(hh*range))/2;
+
+float rra;
+float rrb;
+float rea;
+float reb;
+float rwa;
+float rwb;
+float bs;
+
+uint16_t color1;
+uint16_t color2;
+uint16_t color3;
+uint16_t color4;
+uint16_t bgcolor;
+uint16_t buffer[240 * 240];
+
 void setup() {
-  randomSeed(analogRead(A0));
+  randomSeed(analogRead(A1));
+
   SPI.setSCK(18);
   SPI.setTX(19);
   SPI.begin();
 
   tft.begin();
   tft.setRotation(0);
+
+  // Clear framebuffer
+  memset(buffer, 0, sizeof(buffer));
+
+  // Clear physical display
+  tft.fillScreen(0x0000);
 
     // Connect to Wi-Fi
   Serial.begin(115200);
@@ -60,34 +97,6 @@ void setup() {
   }
 }
 
-int width = 240;
-int height = 240;
-
-
-float t = 0;
-int range = 14;                     // the value used to determin one quadrant 32/16 - 8 usualy too small
-int rhlf  = range/2;                // half the range
-int h = height;
-int w = width;
-int hh = h / range;
-int ww = w / range;
-int ow = (w-(ww*range))/2;
-int oh = (h-(hh*range))/2;
-
-float rra;
-float rrb;
-float rea;
-float reb;
-float rwa;
-float rwb;
-float bs;
-
-uint16_t color1;
-uint16_t color2;
-uint16_t color3;
-uint16_t color4;
-uint16_t bgcolor;
-uint16_t buffer[240 * 240];
 
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
     return ((r & 0xF8) << 8) |
@@ -223,7 +232,7 @@ void loop() {
 
   sendImageToMac();
 
-  delay(50000);
+  delay(100000);
 }
 
 

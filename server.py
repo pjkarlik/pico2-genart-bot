@@ -15,7 +15,7 @@ FRAME_SIZE = WIDTH * HEIGHT * 2  # RGB565 = 2 bytes/pixel
 SAVE_DIR = "images"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-image_number = 0
+image_number = 176
 
 
 def rgb565_to_image(data):
