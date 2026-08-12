@@ -1,8 +1,9 @@
 # Pico 2 W Random Art Bot
 
-A small autonomous generative-art project using a **Raspberry Pi Pico 2 W** to create procedural artwork, upload the resulting images to a local web gallery, and automatically post them to **Bluesky**.
+A small autonomous generative-art project using a **Raspberry Pi Pico 2 W** to create procedural artwork, send the resulting images over WiFi to a local Python server, display them in a Vite-powered web gallery, and automatically post them to **Bluesky**.
 
-<img src="./splash01.jpg" width=640px>
+<img src="./splash01.jpg" width="640px">
+
 The goal is simple: let the hardware continuously create random artwork and occasionally share it with the world.
 
 ## How It Works
@@ -18,27 +19,44 @@ The goal is simple: let the hardware continuously create random artwork and occa
          │ WiFi
          ▼
 ┌──────────────────┐
-│  Local Mac/Web   │
-│     Gallery      │
+│   Python Server  │
 │                  │
-│  tile_XXXX.png   │
+│  Receive Images  │
+│  Save PNG Files  │
+│  Image API       │
 └────────┬─────────┘
          │
-         │ Python Bot
-         ▼
-┌──────────────────┐
-│     Bluesky      │
-│                  │
-│  Random Artwork  │
-│  + Caption       │
-└──────────────────┘
+         ├──────────────────┐
+         │                  │
+         ▼                  ▼
+┌──────────────────┐  ┌──────────────────┐
+│   Vite Gallery   │  │   Python Bot     │
+│                  │  │                  │
+│  TypeScript      │  │  Find New Art    │
+│  SCSS            │  │  Post to Bluesky │
+│  Pagination      │  │  Track Posts     │
+└──────────────────┘  └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │     Bluesky      │
+                      │                  │
+                      │  Random Artwork  │
+                      │  + Caption       │
+                      └──────────────────┘
 ```
+
+The project is intentionally split into independent pieces. The Pico generates the artwork, the Python server handles receiving and serving images, the Vite application provides the gallery, and the Python bot handles social-media posting.
 
 ## Pico 2 W
 
 The artwork is generated directly on a **Raspberry Pi Pico 2 W**.
 
-The Pico creates the procedural/pixel artwork and sends the resulting PNG images over WiFi. The images are stored using sequential filenames such as:
+The Pico creates the procedural/pixel artwork and sends the resulting RGB565 image data over WiFi to the Python server.
+
+The server converts the raw RGB565 data into PNG files using Pillow.
+
+Images are stored using sequential filenames such as:
 
 ```text
 tile_0001.png
@@ -47,30 +65,129 @@ tile_0003.png
 ...
 ```
 
-The Pico is responsible for generating the artwork; the social-media posting is handled separately so the microcontroller can concentrate on rendering.
+The original artwork is generated at **240×240 pixels**.
+
+The Pico is responsible for generating the artwork; image storage, the web gallery, and social-media posting are handled separately so the microcontroller can concentrate on rendering.
+
+## Python Image Server
+
+The Python server acts as the bridge between the Pico and the web gallery.
+
+It:
+
+* Receives artwork from the Pico over WiFi.
+* Converts RGB565 image data into PNG.
+* Saves images to the `images/` directory.
+* Provides an API containing the available images.
+* Serves the generated PNG files to the Vite gallery.
+
+The server currently runs on port `8080`.
+
+### API
+
+The image list is available at:
+
+```text
+GET /api/images
+```
+
+which returns a JSON array of filenames:
+
+```json
+[
+    "tile_0012.png",
+    "tile_0011.png",
+    "tile_0010.png"
+]
+```
+
+Individual images are served from:
+
+```text
+GET /images/tile_0012.png
+```
+
+This keeps the gallery independent from the filesystem. The frontend doesn't need direct access to the `images/` directory; it communicates with the Python server through HTTP.
 
 ## Gallery
 
-The generated artwork is collected into a simple static image gallery on the Mac.
+The gallery is a small **Vite + TypeScript + SCSS** application.
 
-For example:
+Rather than being a collection of static HTML files, the gallery fetches the available artwork from the Python server's API.
+
+The current gallery provides:
+
+* Responsive image grid
+* 12 images per page
+* Simple `< 1 2 3 >` pagination
+* Pixel-art friendly image scaling
+* Click-to-open image modal
+* Large image display using nearest-neighbor/pixelated rendering
+* Repeating image backgrounds in the image viewer
+
+The frontend structure is approximately:
 
 ```text
-images/
-├── index.html
-├── tile_0001.png
-├── tile_0002.png
-├── tile_0003.png
-└── ...
+src/
+├── main.ts
+├── gallery.ts
+└── style.scss
+
+index.html
+vite.config.ts
+package.json
+tsconfig.json
 ```
 
-The gallery can be served locally during development or published to a static hosting service.
+During development, Vite runs on its own development server while proxying API and image requests to the Python server.
 
-The hosting location is intentionally independent from the bot.
+```text
+Vite
+localhost:5173
+     │
+     ├── /api/*
+     │
+     └── /images/*
+              │
+              ▼
+       Python Server
+       localhost:8080
+```
+
+This allows the frontend to simply request:
+
+```text
+/api/images
+/images/tile_0012.png
+```
+
+without hard-coding the Python server's address into the TypeScript application.
+
+## Running the Gallery
+
+Install the Node dependencies:
+
+```bash
+npm install
+```
+
+Start the Vite development server:
+
+```bash
+npm run dev
+```
+
+Vite will provide a local development URL, typically:
+
+```text
+http://localhost:5173
+```
+
+The Python image server must also be running so the gallery can retrieve the artwork.
 
 ## Bluesky Bot
 
-A small Python bot watches the local gallery directory for artwork that hasn't been posted yet.
+A separate Python bot watches the local gallery directory for artwork that hasn't been posted yet.
 
 When new artwork is available, the bot:
 
@@ -104,30 +221,71 @@ For the original 240×240 artwork:
 
 Nearest-neighbor scaling is important because it preserves the hard edges of the original pixels instead of introducing blurry interpolated pixels.
 
-The original image remains unchanged in the gallery.
+The original 240×240 image remains unchanged in the gallery.
 
-## Bot Structure
+## Project Structure
+
+The overall project is organized approximately like this:
 
 ```text
-bot/
-├── bot.py
-├── config.py
-├── requirements.txt
-├── .env
-├── .gitignore
+pico2-genart-bot/
 │
-├── data/
-│   └── posted.json
+├── bot/
+│   ├── bot.py
+│   ├── config.py
+│   ├── requirements.txt
+│   ├── .env
+│   ├── .gitignore
+│   │
+│   ├── data/
+│   │   └── posted.json
+│   │
+│   └── logs/
+│       └── bot.log
 │
-└── logs/
-    └── bot.log
+├── images/
+│   ├── tile_0001.png
+│   ├── tile_0002.png
+│   └── ...
+│
+├── src/
+│   ├── main.ts
+│   ├── gallery.ts
+│   └── style.scss
+│
+├── index.html
+├── server.py
+├── vite.config.ts
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-### `bot.py`
+### `server.py`
+
+Receives raw artwork from the Pico, converts it to PNG, saves it, and provides the API used by the gallery.
+
+### `src/main.ts`
+
+The Vite application's entry point.
+
+### `src/gallery.ts`
+
+Handles fetching artwork from the API, rendering the gallery, pagination, and the image viewer.
+
+### `src/style.scss`
+
+Contains the gallery and modal styling.
+
+### `vite.config.ts`
+
+Configures Vite and proxies `/api` and `/images` requests to the Python server during development.
+
+### `bot/bot.py`
 
 Handles the main bot loop, image selection, image preparation, and Bluesky posting.
 
-### `config.py`
+### `bot/config.py`
 
 Contains configuration such as:
 
@@ -167,15 +325,49 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Then start the bot:
+Then start the image server:
+
+```bash
+python3 server.py
+```
+
+The server will listen for artwork from the Pico:
+
+```text
+Tile server running on port 8080
+```
+
+In a separate terminal, start the bot:
 
 ```bash
 python3 bot.py
 ```
 
-The bot will log in to Bluesky, find available artwork, make its first post, and then wait before selecting another image.
+And in another terminal, start the Vite gallery:
 
-Stop it with:
+```bash
+npm run dev
+```
+
+The three pieces can therefore run independently:
+
+```text
+Terminal 1
+──────────
+python3 server.py
+
+Terminal 2
+──────────
+python3 bot.py
+
+Terminal 3
+──────────
+npm run dev
+```
+
+The bot and gallery can be stopped independently without affecting the Pico's ability to send new artwork to the Python server.
+
+Stop a process with:
 
 ```text
 Ctrl+C
@@ -183,27 +375,36 @@ Ctrl+C
 
 ## The Idea
 
-The project is intentionally split into three independent pieces:
+The project is intentionally split into several independent pieces:
 
-**Generate → Publish → Share**
+**Generate → Collect → Display → Share**
 
-The Pico 2 W handles the interesting part — creating the art.
+The **Pico 2 W** handles the interesting part — creating the art.
 
-The Mac handles the gallery and automation.
+The **Python server** receives and stores the artwork and provides a simple HTTP API.
 
-Bluesky provides the public canvas for the resulting stream of random generative artwork.
+The **Vite application** provides the interactive gallery.
+
+The **Python bot** handles automation and posting.
+
+**Bluesky** provides the public canvas for the resulting stream of random generative artwork.
 
 The result is a little machine that can continuously make and share things without requiring much interaction once it's running.
 
 ---
 
-### Built With
+## Built With
 
 * Raspberry Pi Pico 2 W
 * WiFi
 * Python
 * Pillow
+* TypeScript
+* Vite
+* SCSS
 * Bluesky / AT Protocol
 * PNG
 * Procedural / generative graphics
-* Static HTML gallery
+* HTML / CSS
+* RGB565
+* Nearest-neighbor pixel scaling
