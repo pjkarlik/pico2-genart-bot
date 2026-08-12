@@ -1,0 +1,21 @@
+{
+    "name": "pico2-genart-bot",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@types/node": "^25.9.2",
+        "sass": "^1.86.0",
+        "tsx": "^4.22.4",
+        "typescript": "~5.8.3",
+        "vite": "^6.0.1"
+    },
+    "dependencies": {
+        "modern-normalize": "^3.0.1"
+    }
+}

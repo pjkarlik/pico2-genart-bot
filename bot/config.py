@@ -26,8 +26,8 @@ SITE_URL = "https://pico2tiles.surge.sh"
 # --------------------------------------------------
 
 # Average roughly one post per 3 hours.
-MIN_WAIT_MINUTES = 245
-MAX_WAIT_MINUTES = 290
+MIN_WAIT_MINUTES = 120
+MAX_WAIT_MINUTES = 190
 
 
 # How many images should be eligible
