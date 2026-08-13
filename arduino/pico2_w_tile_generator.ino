@@ -6,7 +6,7 @@
 const char* ssid = "GingerAir";
 const char* password = "A1abammaH1ck0ri";
 
-// IP address of your Mac
+// IP 
 const char* serverIP = "192.168.1.228";
 const int serverPort = 8080;
 
@@ -20,8 +20,8 @@ int height = 240;
 
 
 float t = 0;
-int range = 14;                     // the value used to determin one quadrant 32/16 - 8 usualy too small
-int rhlf  = range/2;                // half the range
+int range = 14;                     
+int rhlf  = range/2;
 int h = height;
 int w = width;
 int hh = h / range;
@@ -46,7 +46,6 @@ uint16_t buffer[240 * 240];
 
 void setup() {
   randomSeed(analogRead(A1));
-
   SPI.setSCK(18);
   SPI.setTX(19);
   SPI.begin();
@@ -187,6 +186,7 @@ void sendImageToMac() {
 }
 
 void resetGrid(){
+
     do {
       range = random(20, 81);
     } while (240 % range != 0);
@@ -198,14 +198,14 @@ void resetGrid(){
   oh = (h-(hh*range))/2;
 
   bs = 1;
-  rra = random(2,5);
-  rrb = 2;
-  rea = random(7,10);
-  reb = 6;
-  rwa = random(11,15);
-  rwb = 10;
+  rrb = random(2,5);
+  rra = rrb+1;
 
+  reb = random(6,9);
+  rea = reb+random(1,2);
 
+  rwb = random(10,14);
+  rwa = rwb+random(1,3);
 
   if(range>39){
     rra = rra*2;
@@ -215,6 +215,7 @@ void resetGrid(){
     rwa = rwa*2;
     rwb = rwa*2;
   }
+  
   color1 = hsv565(random(360), 1.0, 1.0);
   color2 = hsv565(random(360), 1.0, 1.0);
   color3 = hsv565(random(360), 1.0, 1.0);
@@ -232,19 +233,16 @@ void loop() {
 
   sendImageToMac();
 
-  delay(100000);
+  delay(200000);
 }
-
 
 void drawMap() {
   for(int x = 0; x < ww; x++){
     for(int y = 0; y < hh; y++){
       float check = random(1,5);
-     // tft.fillRect(x*range,y*range,range,range,bgcolor);
       drawTile(x, y, check);
     }
   }
-
   tft.drawRGBBitmap(0,0,buffer,240,240);
 }
 
@@ -288,14 +286,12 @@ void drawTile(int x, int y, int check) {
           if ( check2 ) flop = color2;
           if ( check3 ) flop = color3;
           if ( check4 && range > 25) flop = color4;
-
-     
       } 
 
-        int px = ow + x * range + dx;
-        int py = oh + y * range + dy;
-      if (flop > 0) {
+      int px = ow + x * range + dx;
+      int py = oh + y * range + dy;
 
+      if (flop > 0) {
         buffer[py * width + px] = flop;
       } else {
         buffer[py * width + px] = bgcolor;

@@ -14,7 +14,7 @@ FRAME_SIZE = WIDTH * HEIGHT * 2  # RGB565 = 2 bytes/pixel
 SAVE_DIR = "images"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-image_number = 177
+image_number = 201
 
 def rgb565_to_image(data):
     """Convert raw RGB565 bytes into a Pillow RGB image."""
