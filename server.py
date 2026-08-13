@@ -16,7 +16,6 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 image_number = 177
 
-
 def rgb565_to_image(data):
     """Convert raw RGB565 bytes into a Pillow RGB image."""
 

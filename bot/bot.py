@@ -33,6 +33,29 @@ console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logging.getLogger().addHandler(console)
 
+# --------------------------------------------------
+# Sleep with countdown
+# --------------------------------------------------
+
+
+def sleep_with_countdown(minutes):
+    total_seconds = minutes * 60
+    interval = 5 * 60
+
+    while total_seconds > 0:
+
+        remaining_minutes = total_seconds // 60
+
+        print(
+            f"Sleeping... {remaining_minutes} minutes remaining",
+            flush=True
+        )
+
+        sleep_time = min(interval, total_seconds)
+
+        time.sleep(sleep_time)
+
+        total_seconds -= sleep_time
 
 # --------------------------------------------------
 # Bluesky
@@ -273,8 +296,9 @@ def main():
             wait_minutes
         )
 
-        time.sleep(wait_minutes * 60)
-
+        #time.sleep(wait_minutes * 60)
+        sleep_with_countdown(wait_minutes)
 
 if __name__ == "__main__":
     main()
+
