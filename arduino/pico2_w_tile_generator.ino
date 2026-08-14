@@ -3,8 +3,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
 
-const char* ssid = "GingerAir";
-const char* password = "A1abammaH1ck0ri";
+const char* ssid = "xxxxxx";
+const char* password = "xxxxxx";
 
 // IP 
 const char* serverIP = "192.168.1.228";
