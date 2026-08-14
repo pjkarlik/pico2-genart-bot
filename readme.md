@@ -116,6 +116,8 @@ This keeps the gallery independent from the filesystem. The frontend doesn't nee
 
 ## Gallery
 
+<img src =splash02.gif>
+
 The gallery is a small **Vite + TypeScript + SCSS** application.
 
 Rather than being a collection of static HTML files, the gallery fetches the available artwork from the Python server's API.
