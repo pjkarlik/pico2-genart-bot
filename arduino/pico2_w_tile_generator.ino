@@ -7,7 +7,7 @@ const char* ssid = "xxxxxx";
 const char* password = "xxxxxx";
 
 // IP 
-const char* serverIP = "192.168.1.228";
+const char* serverIP = "192.xxx.x.xxx";
 const int serverPort = 8080;
 
 WiFiClient client;
