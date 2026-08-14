@@ -1,0 +1,21 @@
+[project]
+name = "pico2-genart-bot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "pjkarlik", email = "pjkarlik@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "atproto>=0.0.69",
+    "pillow>=11.3.0",
+    "python-dotenv>=1.2.1",
+]
+
+[project.scripts]
+pico2-genart-bot = "pico2_genart_bot:main"
+
+[build-system]
+requires = ["uv_build>=0.12.4,<0.13.0"]
+build-backend = "uv_build"

@@ -48,6 +48,11 @@ The goal is simple: let the hardware continuously create random artwork and occa
 
 The project is intentionally split into independent pieces. The Pico generates the artwork, the Python server handles receiving and serving images, the Vite application provides the gallery, and the Python bot handles social-media posting.
 
+## Parts List
+
+* [Pico 2 W Microcontroller - Amazon.com](https://a.co/d/0bXTyKj8)
+* [TFT LCD GC9A01 Driver - Amazon.com](https://a.co/d/04De4shb)
+
 ## Pico 2 W
 
 The artwork is generated directly on a **Raspberry Pi Pico 2 W**.
@@ -233,9 +238,7 @@ pico2-genart-bot/
 ├── bot/
 │   ├── bot.py
 │   ├── config.py
-│   ├── requirements.txt
 │   ├── .env
-│   ├── .gitignore
 │   │
 │   ├── data/
 │   │   └── posted.json
@@ -258,6 +261,8 @@ pico2-genart-bot/
 ├── vite.config.ts
 ├── package.json
 ├── tsconfig.json
+├── pyproject.toml
+├── uv.lock
 └── README.md
 ```
 
@@ -310,25 +315,103 @@ BLUESKY_HANDLE=yourbot.bsky.social
 BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 ```
 
-## Running the Bot
+## Python Environment
 
-Create and activate the Python virtual environment:
+The Python portion of the project uses **[uv](https://docs.astral.sh/uv/)** for dependency and virtual-environment management.
+
+Rather than manually creating and activating a Python virtual environment, uv manages the project's environment from `pyproject.toml` and `uv.lock`.
+
+### Install uv
+
+If uv isn't already installed:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Install dependencies:
+Verify the installation:
 
 ```bash
-pip install -r requirements.txt
+uv --version
 ```
 
-Then start the image server:
+### Install Python Dependencies
+
+From the project root:
 
 ```bash
-python3 server.py
+uv sync
+```
+
+This creates the project's `.venv` and installs the dependencies defined in `pyproject.toml`.
+
+The `uv.lock` file records the resolved dependency versions so the environment can be reproduced consistently.
+
+### Running Python
+
+The Python server can be started with:
+
+```bash
+uv run python server.py
+```
+
+The Bluesky bot can be started with:
+
+```bash
+uv run python bot/bot.py
+```
+
+There is no need to manually activate `.venv`.
+
+### Adding Dependencies
+
+New Python dependencies can be added with:
+
+```bash
+uv add package-name
+```
+
+For example:
+
+```bash
+uv add pillow
+```
+
+uv updates both `pyproject.toml` and `uv.lock`.
+
+To remove a dependency:
+
+```bash
+uv remove package-name
+```
+
+### Recreating the Environment
+
+After cloning the repository, the Python environment can be recreated with:
+
+```bash
+uv sync
+```
+
+This uses `pyproject.toml` and `uv.lock` to install the project's dependencies.
+
+The `.venv` directory itself should **not** be committed to GitHub.
+
+## Running the Project
+
+After cloning the repository, install the Python and Node dependencies:
+
+```bash
+uv sync
+npm install
+```
+
+The project consists of three independently running components.
+
+### Terminal 1 — Python Image Server
+
+```bash
+uv run python server.py
 ```
 
 The server will listen for artwork from the Pico:
@@ -337,16 +420,24 @@ The server will listen for artwork from the Pico:
 Tile server running on port 8080
 ```
 
-In a separate terminal, start the bot:
+### Terminal 2 — Bluesky Bot
 
 ```bash
-python3 bot.py
+uv run python bot/bot.py
 ```
 
-And in another terminal, start the Vite gallery:
+The bot watches for new artwork and periodically posts it to Bluesky.
+
+### Terminal 3 — Vite Gallery
 
 ```bash
 npm run dev
+```
+
+Vite will provide a local development URL, typically:
+
+```text
+http://localhost:5173
 ```
 
 The three pieces can therefore run independently:
@@ -354,11 +445,11 @@ The three pieces can therefore run independently:
 ```text
 Terminal 1
 ──────────
-python3 server.py
+uv run python server.py
 
 Terminal 2
 ──────────
-python3 bot.py
+uv run python bot/bot.py
 
 Terminal 3
 ──────────
@@ -371,6 +462,34 @@ Stop a process with:
 
 ```text
 Ctrl+C
+```
+
+## Git and Environment Files
+
+The repository should include:
+
+```text
+pyproject.toml
+uv.lock
+package.json
+package-lock.json
+```
+
+but should **not** include:
+
+```text
+.env
+.venv/
+__pycache__/
+*.pyc
+```
+
+The `.env` file contains private Bluesky credentials and must never be committed to GitHub.
+
+The `.venv` directory is created and managed by uv and can always be recreated with:
+
+```bash
+uv sync
 ```
 
 ## The Idea
@@ -398,6 +517,7 @@ The result is a little machine that can continuously make and share things witho
 * Raspberry Pi Pico 2 W
 * WiFi
 * Python
+* [uv](https://docs.astral.sh/uv/)
 * Pillow
 * TypeScript
 * Vite
