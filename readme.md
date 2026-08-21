@@ -118,6 +118,8 @@ This keeps the gallery independent from the filesystem. The frontend doesn't nee
 
 <img src =splash02.gif>
 
+[Click for Live Gallery](https://pico2tiles.surge.sh/)
+
 The gallery is a small **Vite + TypeScript + SCSS** application.
 
 Rather than being a collection of static HTML files, the gallery fetches the available artwork from the Python server's API.
@@ -249,10 +251,11 @@ pico2-genart-bot/
 │       └── bot.log
 │
 ├── images/
-│   ├── tile_0001.png
-│   ├── tile_0002.png
-│   └── ...
-│
+│   ├── images.json
+│   └─ images/
+│       ├── tile_0001.png
+│       ├── tile_0002.png
+│       └── ...│
 ├── src/
 │   ├── main.ts
 │   ├── gallery.ts

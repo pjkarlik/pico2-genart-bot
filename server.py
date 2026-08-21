@@ -3,6 +3,7 @@ from PIL import Image
 import os
 import struct
 import json
+from pathlib import Path
 
 HOST = "0.0.0.0"
 PORT = 8080
@@ -11,7 +12,13 @@ WIDTH = 240
 HEIGHT = 240
 FRAME_SIZE = WIDTH * HEIGHT * 2  # RGB565 = 2 bytes/pixel
 
-SAVE_DIR = "images"
+BASE_DIR = Path(__file__).resolve().parent
+
+SAVE_DIR = BASE_DIR / "public" / "images"
+IMAGE_LIST_FILE = BASE_DIR / "public" / "images.json"
+
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
+
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 image_number = 201
@@ -40,7 +47,25 @@ def rgb565_to_image(data):
 
     return image
 
+def update_image_list():
+    files = [
+        filename
+        for filename in os.listdir(SAVE_DIR)
+        if filename.lower().endswith(".png")
+    ]
 
+    # Newest first
+    files.sort(reverse=True)
+
+    data = {
+        "images": files
+    }
+
+    with open(IMAGE_LIST_FILE, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
+
+    print(f"Updated {IMAGE_LIST_FILE} ({len(files)} images)")
+    
 class TileHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
@@ -78,6 +103,8 @@ class TileHandler(BaseHTTPRequestHandler):
 
         image_number += 1
 
+        update_image_list()
+
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
@@ -86,29 +113,26 @@ class TileHandler(BaseHTTPRequestHandler):
     def do_GET(self):
 
         # -----------------------------
-        # API: list images
+        # Serve image list
         # -----------------------------
 
-        if self.path == "/api/images":
+        if self.path == "/images.json":
 
-            files = [
-                filename
-                for filename in os.listdir(SAVE_DIR)
-                if filename.lower().endswith(".png")
-            ]
+            if not os.path.isfile(IMAGE_LIST_FILE):
+                self.send_response(404)
+                self.end_headers()
+                return
 
-            # Newest first
-            files.sort(reverse=True)
-
-            response = json.dumps(files).encode("utf-8")
+            with open(IMAGE_LIST_FILE, "rb") as file:
+                data = file.read()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(response)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
 
-            self.wfile.write(response)
+            self.wfile.write(data)
 
             return
 
@@ -121,7 +145,6 @@ class TileHandler(BaseHTTPRequestHandler):
 
             filename = self.path[len("/images/"):]
 
-            # Basic security check
             if "/" in filename or "\\" in filename:
                 self.send_response(400)
                 self.end_headers()
@@ -140,13 +163,15 @@ class TileHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "public, max-age=31536000")
+            self.send_header(
+                "Cache-Control",
+                "public, max-age=31536000"
+            )
             self.end_headers()
 
             self.wfile.write(data)
 
             return
-
 
         # -----------------------------
         # Anything else

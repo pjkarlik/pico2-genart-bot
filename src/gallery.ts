@@ -42,21 +42,20 @@ export class Gallery {
     }
 
     async load() {
-
         try {
-
-            const response = await fetch('/api/images');
+            const response = await fetch('/images.json');
 
             if (!response.ok) {
-                throw new Error('Failed to fetch images');
+                throw new Error('Failed to fetch image list');
             }
 
-            this.images = await response.json();
+            const data = await response.json();
+
+            this.images = data.images;
 
             this.render();
 
         } catch (error) {
-
             console.error('Gallery error:', error);
 
             this.container.innerHTML = `

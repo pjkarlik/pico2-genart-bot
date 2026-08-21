@@ -6,7 +6,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Original generated images
 IMAGE_DIR = BASE_DIR.parent / "images"
+
+# Public website files
+PUBLIC_DIR = BASE_DIR.parent / "public"
+PUBLIC_IMAGE_DIR = PUBLIC_DIR / "images"
+IMAGE_LIST_FILE = PUBLIC_DIR / "images.json"
 
 DATA_DIR = BASE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
