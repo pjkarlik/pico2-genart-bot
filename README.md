@@ -2,7 +2,7 @@
 
 A small autonomous generative-art system built around a **Raspberry Pi Pico 2 W**.
 
-<img src="./splash01.jpg" width="320px">
+<img src="./splash03.jpg" width="320px">
 
 The Pico continuously creates procedural pixel artwork and sends it over WiFi to a Python server. The server receives and stores the artwork, while a dedicated **8×8 status LED matrix** provides a physical indication of what the system is doing.
 
