@@ -11,6 +11,8 @@ from atproto import Client
 from PIL import Image
 
 import config
+import requests
+import time
 
 
 # --------------------------------------------------
@@ -33,29 +35,71 @@ console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logging.getLogger().addHandler(console)
 
+
+
+# --------------------------------------------------
+# Send Message to Server
+# --------------------------------------------------
+
+SERVER_URL = "http://localhost:8080"
+
+
+def send_status(status):
+    try:
+        requests.post(
+            f"{SERVER_URL}/status",
+            data=status,
+            timeout=5
+        )
+    except Exception as e:
+        logging.error(
+            "Could not send status %s: %s",
+            status,
+            e
+        )
+
 # --------------------------------------------------
 # Sleep with countdown
 # --------------------------------------------------
 
-
 def sleep_with_countdown(minutes):
-    total_seconds = minutes * 60
+    end_time = time.monotonic() + (minutes * 60)
     interval = 5 * 60
 
-    while total_seconds > 0:
+    while True:
+        remaining_seconds = max(
+            0,
+            int(end_time - time.monotonic())
+        )
 
-        remaining_minutes = total_seconds // 60
+        remaining_minutes = (remaining_seconds + 59) // 60
 
+        if remaining_seconds <= 0:
+            break
+
+        send_status("RESET")
+        time.sleep(0.1)
+        
         print(
             f"Sleeping... {remaining_minutes} minutes remaining",
             flush=True
         )
 
-        sleep_time = min(interval, total_seconds)
+        # Tell the Pico we're still in the sleeping state
+        send_status("SLEEPING")
+
+        sleep_time = min(interval, remaining_seconds)
 
         time.sleep(sleep_time)
+        
 
-        total_seconds -= sleep_time
+    # Countdown is finished
+    send_status("IDLE")
+
+    print(
+        "Sleep complete. Returning to idle.",
+        flush=True
+    )
 
 # --------------------------------------------------
 # Bluesky
@@ -85,6 +129,7 @@ logging.info("Logged into Bluesky as %s", BLUESKY_HANDLE)
 # --------------------------------------------------
 
 def load_posted():
+
     if not config.POSTED_FILE.exists():
         return []
 
@@ -200,6 +245,9 @@ def make_caption(filename):
 
 def post_image(path):
 
+    send_status("POSTING")
+    time.sleep(2)
+
     logging.info("Preparing %s", path.name)
 
     upload_path = prepare_image(path)
@@ -273,12 +321,16 @@ def main():
 
             save_posted(posted)
 
+            send_status("POSTED")
+
             logging.info(
                 "Successfully posted %s",
                 image.name
             )
 
         except Exception as e:
+
+            send_status("ERROR")
 
             logging.exception(
                 "Failed posting %s: %s",

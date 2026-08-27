@@ -6,13 +6,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Original generated images
-IMAGE_DIR = BASE_DIR.parent / "images"
-
 # Public website files
 PUBLIC_DIR = BASE_DIR.parent / "public"
 PUBLIC_IMAGE_DIR = PUBLIC_DIR / "images"
 IMAGE_LIST_FILE = PUBLIC_DIR / "images.json"
+
+# Generated images
+IMAGE_DIR = PUBLIC_IMAGE_DIR
 
 DATA_DIR = BASE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
@@ -32,8 +32,8 @@ SITE_URL = "https://pico2tiles.surge.sh"
 # --------------------------------------------------
 
 # Average roughly one post per 3 hours.
-MIN_WAIT_MINUTES = 120
-MAX_WAIT_MINUTES = 180
+MIN_WAIT_MINUTES = 420
+MAX_WAIT_MINUTES = 580
 
 
 # How many images should be eligible

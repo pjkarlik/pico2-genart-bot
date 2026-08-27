@@ -4,6 +4,22 @@ import os
 import struct
 import json
 from pathlib import Path
+import serial
+import time
+
+SERIAL_PORT = "/dev/serial/by-id/usb-Raspberry_Pi_Pico_2_C28AAC730E0F6A20-if00"
+#SERIAL_PORT = "/dev/cu.usbmodem1101"
+BAUD = 115200
+
+HEADER_1 = 0xAA
+HEADER_2 = 0x55
+
+MSG_STATUS = 0x01
+
+ser = serial.Serial(SERIAL_PORT, BAUD)
+
+# Give the Pico time to reset after opening serial
+time.sleep(2)
 
 HOST = "0.0.0.0"
 PORT = 8080
@@ -21,10 +37,43 @@ SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-image_number = 201
+image_number = 223
+
+STATUS_CODES = {
+    "IDLE": 0x00,
+    "RECEIVED": 0x01,
+    "SAVED": 0x02,
+    "POSTING": 0x03,
+    "POSTED": 0x04,
+    "SLEEPING": 0x05,
+    "ERROR": 0x06,
+    "RESET": 0x07,
+}
+
+
+def send_status(status):
+    code = STATUS_CODES.get(status)
+
+    if code is None:
+        print(f"Unknown status: {status}")
+        return
+
+    packet = bytes([
+        HEADER_1,
+        HEADER_2,
+        MSG_STATUS,
+        1,
+        code
+    ])
+
+    ser.write(packet)
+    ser.flush()
 
 def rgb565_to_image(data):
-    """Convert raw RGB565 bytes into a Pillow RGB image."""
+    if len(data) != FRAME_SIZE:
+        raise ValueError(
+            f"Expected {FRAME_SIZE} bytes, got {len(data)}"
+        )
 
     pixels = []
 
@@ -35,7 +84,6 @@ def rgb565_to_image(data):
         g = (value >> 5) & 0x3F
         b = value & 0x1F
 
-        # Expand 5/6-bit values to 8-bit
         r = (r * 255) // 31
         g = (g * 255) // 63
         b = (b * 255) // 31
@@ -70,8 +118,25 @@ class TileHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
 
-        global image_number
+        if self.path == "/status":
 
+            content_length = int(
+                self.headers.get("Content-Length", 0)
+            )
+
+            data = self.rfile.read(content_length)
+
+            status = data.decode("utf-8").strip()
+
+            send_status(status)
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+
+            return
+
+        global image_number
         if self.path != "/tile":
             self.send_response(404)
             self.end_headers()
@@ -90,7 +155,35 @@ class TileHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        data = self.rfile.read(content_length)
+        send_status("RECEIVED")
+
+        data = bytearray()
+
+        while len(data) < content_length:
+            chunk = self.rfile.read(content_length - len(data))
+
+            if not chunk:
+                break
+
+            data.extend(chunk)
+
+        data = bytes(data)
+
+        time.sleep(.5)
+
+        if len(data) != FRAME_SIZE:
+            print(
+                f"Incomplete image: received {len(data)} bytes "
+                f"(expected {FRAME_SIZE})"
+            )
+
+            send_status("ERROR")
+
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        time.sleep(.5)
 
         image = rgb565_to_image(data)
 
@@ -108,7 +201,8 @@ class TileHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
-
+        send_status("SAVED")
+        time.sleep(2)
 
     def do_GET(self):
 
