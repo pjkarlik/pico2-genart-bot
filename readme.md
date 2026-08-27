@@ -201,31 +201,121 @@ The display checks for new serial messages while its animation is running, allow
 
 ---
 
-# Status Display
+# Status LED Matrix
 
-The LED matrix is more than an activity indicator. It is intended to make the otherwise headless system observable without opening a terminal.
+The project includes an **8×8 RGB LED matrix** that provides a physical status display for the otherwise headless system.
 
-The display can show the current bot state and system information.
+The matrix currently displays the same **animated status indicators** used throughout the bot's workflow. Each status has its own animation, and the animation continues to loop until a new status message is received.
 
-For system monitoring, status values such as:
-
-* CPU temperature
-* CPU usage
-* Memory usage
-
-can be represented as horizontal bars across the 8-pixel width.
-
-The status bars use dedicated rows:
+The current status states are:
 
 ```text
-Row 2  → CPU temperature
-Row 4  → CPU usage
-Row 6  → Memory usage
+IDLE
+RECEIVED
+SAVED
+POSTING
+POSTED
+SLEEPING
+ERROR
 ```
 
-Values are scaled to the available **1–8 LED** range.
+The status flow allows the physical display to show what the bot is currently doing without needing to look at the server or bot logs.
 
-This gives the machine a simple physical dashboard while it runs.
+## Status Flow
+
+```text
+IDLE
+  │
+  ▼
+RECEIVED
+  │
+  ▼
+SAVED
+  │
+  ▼
+POSTING
+  │
+  ▼
+POSTED
+  │
+  ▼
+SLEEPING
+  │
+  └──────────────► IDLE
+```
+
+If an error occurs, the display can switch to:
+
+```text
+ERROR
+```
+
+## Animated Statuses
+
+The Arduino LED-matrix firmware maintains the **last received status** and continuously runs its associated animation.
+
+This means the matrix does not simply display a status once and stop. Instead:
+
+```text
+Receive status
+      │
+      ▼
+Store current status
+      │
+      ▼
+Run status animation
+      │
+      │
+      └─────── loop
+```
+
+While the animation is running, the firmware continues checking the serial connection for new messages. When a new status arrives, the current animation is interrupted and the new status animation begins.
+
+This allows the server and bot to update the display immediately even when an animation is still running.
+
+## Reset Messages
+
+The serial protocol also supports an explicit reset message.
+
+This is useful when the same status needs to be triggered again.
+
+For example, the bot may already be displaying `SLEEPING`. Sending another `SLEEPING` status by itself would not necessarily restart the animation because the status has not changed.
+
+A reset message can first clear/restart the display state:
+
+```text
+RESET
+  │
+  ▼
+SLEEPING
+```
+
+This is particularly useful for the sleep countdown/status updates.
+
+## Serial Protocol
+
+Messages are framed using:
+
+```text
+0xAA 0x55
+```
+
+The protocol currently includes message types for status updates and display resets.
+
+The status messages use the following state values:
+
+```text
+STATUS_IDLE       0x00
+STATUS_RECEIVED   0x01
+STATUS_SAVED      0x02
+STATUS_POSTING    0x03
+STATUS_POSTED     0x04
+STATUS_SLEEPING   0x05
+STATUS_ERROR      0x06
+```
+
+The LED matrix therefore acts as a simple physical **activity/status indicator**, showing the current state of the art-generation and posting pipeline through animation.
+
 
 ---
 
