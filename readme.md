@@ -377,7 +377,7 @@ The bot intentionally does not post continuously.
 The current randomized posting interval is approximately:
 
 ```text
-120–180 minutes
+420–580 minutes
 ```
 
 This creates a less predictable, more autonomous posting schedule.
