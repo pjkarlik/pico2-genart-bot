@@ -81,7 +81,7 @@ export class Gallery {
                         width="120"
                         height="120"
                     >
-                </div>
+                </button>
             `)
             .join('');
 

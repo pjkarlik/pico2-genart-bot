@@ -12,7 +12,6 @@ from PIL import Image
 
 import config
 import requests
-import time
 
 
 # --------------------------------------------------
@@ -163,7 +162,7 @@ def find_images():
     )
 
 
-def choose_image(posted):
+def choose_images(posted):
     images = find_images()
 
     if not images:
@@ -179,30 +178,64 @@ def choose_image(posted):
         logging.info("All images have been posted.")
         return None
 
-    return random.choice(available)
+    if len(available) >= 2 and random.random() < 0.5:
+        return random.sample(available, 2)
+
+    return [random.choice(available)]
 
 
 # --------------------------------------------------
 # Image preparation
 # --------------------------------------------------
 
-SOCIAL_SCALE = 4
+def prepare_image(paths):
 
-def prepare_image(path):
+    if len(paths) not in (1, 2):
+        raise ValueError("Expected one or two source images.")
 
-    img = Image.open(path)
+    source_images = []
 
-    img = img.resize(
-        (
-            img.width * SOCIAL_SCALE,
-            img.height * SOCIAL_SCALE
-        ),
-        Image.Resampling.NEAREST
+    for path in paths:
+        with Image.open(path) as image:
+            source_images.append(image.copy())
+
+    tile_size = source_images[0].size
+
+    if any(image.size != tile_size for image in source_images):
+        raise ValueError("Source images must have matching dimensions.")
+
+    if len(source_images) == 1:
+        cell_sources = [0, 0, 0, 0]
+    else:
+        cell_sources = [
+            random.randrange(2)
+            for _ in range(4)
+        ]
+
+        while len(set(cell_sources)) < 2:
+            cell_sources = [
+                random.randrange(2)
+                for _ in range(4)
+            ]
+
+    tile_width, tile_height = tile_size
+    grid = Image.new(
+        source_images[0].mode,
+        (tile_width * 2, tile_height * 2)
     )
+
+    for cell_index, source_index in enumerate(cell_sources):
+        grid.paste(
+            source_images[source_index],
+            (
+                (cell_index % 2) * tile_width,
+                (cell_index // 2) * tile_height
+            )
+        )
 
     temp_path = config.DATA_DIR / "_upload.png"
 
-    img.save(
+    grid.save(
         temp_path,
         "PNG",
         optimize=True
@@ -215,20 +248,28 @@ def prepare_image(path):
 # Caption
 # --------------------------------------------------
 
-def make_caption(filename):
+def get_tile_numbers(paths):
+    return [
+        path.stem.replace("tile_", "")
+        for path in paths
+    ]
 
-    number = filename.replace(
-        "tile_", ""
-    ).replace(
-        ".png", ""
+
+def make_caption(paths):
+
+    numbers = get_tile_numbers(paths)
+    tile_reference = (
+        f"tile:{numbers[0]}"
+        if len(numbers) == 1
+        else f"tiles:{', '.join(numbers)}"
     )
 
     captions = [
-        f"Random generative study tile:{number}",
-        f"Procedural experiment tile:{number}",
-        f"Another little machine-made universe tile:{number}",
-        f"Generated somewhere between math and chaos tile:{number}",
-        f"Random pixels tile:{number}",
+        f"Random generative study - {tile_reference}",
+        f"Procedural experiment of colors and shapes. {tile_reference}",
+        f"Subdivided generative experiment - {tile_reference}",
+        f"Pico2 generative art bot! {tile_reference}",
+        f"Random Subdivided tiles <3 {tile_reference}",
     ]
 
     caption = random.choice(captions)
@@ -243,33 +284,50 @@ def make_caption(filename):
 # Post
 # --------------------------------------------------
 
-def post_image(path):
+def post_image(paths):
 
     send_status("POSTING")
     time.sleep(2)
 
-    logging.info("Preparing %s", path.name)
+    image_names = ", ".join(
+        path.name
+        for path in paths
+    )
 
-    upload_path = prepare_image(path)
+    logging.info("Preparing %s", image_names)
+
+    upload_path = prepare_image(paths)
 
     with open(upload_path, "rb") as f:
         image_data = f.read()
 
     if len(image_data) > config.MAX_IMAGE_SIZE:
         raise RuntimeError(
-            f"{path.name} is too large for Bluesky: "
+            f"Grid made from {image_names} is too large for Bluesky: "
             f"{len(image_data):,} bytes"
         )
 
-    caption = make_caption(path.name)
+    caption = make_caption(paths)
+
+    numbers = get_tile_numbers(paths)
+
+    if len(numbers) == 1:
+        artwork_description = (
+            f"Artwork #{numbers[0]} repeated in a 2 by 2 grid."
+        )
+    else:
+        artwork_description = (
+            f"Artworks #{numbers[0]} and #{numbers[1]} arranged "
+            f"in a randomized 2 by 2 grid."
+        )
 
     alt_text = (
         f"Generative artwork created by a Raspberry Pi Pico 2 "
         f"and displayed in the Pico2Tiles project. "
-        f"Artwork {path.stem.replace('tile_', '#')}."
+        f"{artwork_description}"
     )
 
-    logging.info("Posting %s", path.name)
+    logging.info("Posting %s", image_names)
 
     post = client.send_image(
         text=caption,
@@ -279,7 +337,7 @@ def post_image(path):
 
     logging.info(
         "Posted %s -> %s",
-        path.name,
+        image_names,
         post.uri
     )
 
@@ -301,9 +359,9 @@ def main():
 
     while True:
 
-        image = choose_image(posted)
+        images = choose_images(posted)
 
-        if image is None:
+        if images is None:
 
             logging.info(
                 "No new artwork available. "
@@ -315,9 +373,12 @@ def main():
 
         try:
 
-            post = post_image(image)
+            post = post_image(images)
 
-            posted.append(image.name)
+            posted.extend(
+                image.name
+                for image in images
+            )
 
             save_posted(posted)
 
@@ -325,7 +386,10 @@ def main():
 
             logging.info(
                 "Successfully posted %s",
-                image.name
+                ", ".join(
+                    image.name
+                    for image in images
+                )
             )
 
         except Exception as e:
@@ -334,7 +398,10 @@ def main():
 
             logging.exception(
                 "Failed posting %s: %s",
-                image.name,
+                ", ".join(
+                    image.name
+                    for image in images
+                ),
                 e
             )
 
