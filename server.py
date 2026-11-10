@@ -7,8 +7,8 @@ from pathlib import Path
 import serial
 import time
 
-SERIAL_PORT = "/dev/serial/by-id/usb-Raspberry_Pi_Pico_2_C28AAC730E0F6A20-if00"
-#SERIAL_PORT = "/dev/cu.usbmodem1101"
+#SERIAL_PORT = "/dev/serial/by-id/usb-Raspberry_Pi_Pico_2_C28AAC730E0F6A20-if00"
+SERIAL_PORT = "/dev/cu.usbmodem1101"
 BAUD = 115200
 
 HEADER_1 = 0xAA
@@ -35,9 +35,18 @@ IMAGE_LIST_FILE = BASE_DIR / "public" / "images.json"
 
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
-os.makedirs(SAVE_DIR, exist_ok=True)
 
-image_number = 223
+def get_next_image_number():
+    image_numbers = [
+        int(path.stem.removeprefix("tile_"))
+        for path in SAVE_DIR.glob("tile_*.png")
+        if path.stem.removeprefix("tile_").isdigit()
+    ]
+
+    return max(image_numbers, default=-1) + 1
+
+
+image_number = get_next_image_number()
 
 STATUS_CODES = {
     "IDLE": 0x00,

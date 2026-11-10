@@ -1,9 +1,6 @@
-
-// Device Specific Drivers - Waveshare LEDMatrix RP2350
+// Waveshare RP2350 LED Matrix Display
 #include "DEV_Config.h"
 #include "WS2812.h"
-
-// Animations for LEDMatrix
 #include "Animations.h"
 
 #define HEADER_1 0xAA
@@ -13,8 +10,19 @@
 #define MSG_RESET  0x07
 
 #define STATUS_IDLE      0x00
-#define STATUS_RUN       0x01
-#define STATUS_TWIST     0x02
+#define STATUS_RECEIVED  0x01
+#define STATUS_SAVED     0x02
+#define STATUS_POSTING   0x03
+#define STATUS_POSTED    0x04
+#define STATUS_SLEEPING  0x05
+#define STATUS_ERROR     0x06
+
+#define STATUS_QUEUE_SIZE 16
+
+uint8_t statusQueue[STATUS_QUEUE_SIZE];
+uint8_t queueHead = 0;
+uint8_t queueTail = 0;
+uint8_t queueCount = 0;
 
 // Declaration for an SSD1306 display conne
 void setup() {
@@ -40,8 +48,42 @@ struct Pixel {
 
 Pixel framebuffer[WIDTH][HEIGHT];
 
-uint8_t currentStatus = STATUS_RUN;
+uint8_t currentStatus = STATUS_IDLE;
 static uint8_t lastStatus = 255;
+
+// --------------------------------------------------
+// Enqueue Helpers
+// --------------------------------------------------
+
+
+bool enqueueStatus(uint8_t status)
+{
+    if (queueCount >= STATUS_QUEUE_SIZE)
+    {
+        // Queue full
+        Serial.println("STATUS QUEUE FULL");
+        return false;
+    }
+
+    statusQueue[queueTail] = status;
+    queueTail = (queueTail + 1) % STATUS_QUEUE_SIZE;
+    queueCount++;
+
+    return true;
+}
+
+
+bool dequeueStatus(uint8_t &status)
+{
+    if (queueCount == 0)
+        return false;
+
+    status = statusQueue[queueHead];
+    queueHead = (queueHead + 1) % STATUS_QUEUE_SIZE;
+    queueCount--;
+
+    return true;
+}
 
 // --------------------------------------------------
 // Color Palette
@@ -183,10 +225,12 @@ void handleMessage(
 
     if (type == MSG_STATUS && length >= 1)
     {
-        currentStatus = data[0];
+        uint8_t status = data[0];
 
-        Serial.print("STATUS: ");
-        Serial.println(currentStatus);
+        Serial.print("QUEUE STATUS: ");
+        Serial.println(status);
+
+        enqueueStatus(status);
     }
 }
 
@@ -194,7 +238,7 @@ void handleMessage(
 // Draw Frame
 // --------------------------------------------------
 
-void drawFrame(const uint16_t frame[8][8])
+void drawFrame(const uint16_t frame[6][8])
 {
     WS2812_clear();
 
@@ -206,6 +250,7 @@ void drawFrame(const uint16_t frame[8][8])
             int rotatedX = 7 - x; 
             int rotatedY = 7 - y; 
             int index = frame[rotatedX][rotatedY];
+            //int index = frame[y][x];
 
             WS2812_set_pixel(
                 x,
@@ -221,101 +266,97 @@ void drawFrame(const uint16_t frame[8][8])
 }
 
 // --------------------------------------------------
-// Animation State
+// Draw Status
 // --------------------------------------------------
 
-const unsigned long FRAME_DELAY = 80;
-
-uint8_t animationFrame = 0;
-unsigned long lastFrameTime = 0;
-
-// --------------------------------------------------
-// Draw Status Animation
-// --------------------------------------------------
-
-void updateAnimation()
+void drawIdle()
 {
-    unsigned long now = millis();
-
-    // Status changed — restart animation
-    if (currentStatus != lastStatus)
-    {
-        lastStatus = currentStatus;
-        animationFrame = 0;
-        lastFrameTime = now;
-
-        // Draw first frame immediately
-        switch (currentStatus)
-        {
-            case STATUS_IDLE:
-                drawFrame(idleFrames[animationFrame]);
-                break;
-
-            case STATUS_RUN:
-                drawFrame(runFrames[animationFrame]);
-                break;
-
-            case STATUS_TWIST:
-                drawFrame(runFrames[animationFrame]);
-                break;
-        }
-
-        return;
-    }
-
-    // Not time for the next frame yet
-    if (now - lastFrameTime < FRAME_DELAY)
-        return;
-
-    lastFrameTime = now;
-
-    switch (currentStatus)
-    {
-        case STATUS_IDLE:
-        {
-            const int frameCount = 8;
-
-            animationFrame++;
-
-            if (animationFrame >= frameCount)
-                animationFrame = 0;
-
-            drawFrame(idleFrames[animationFrame]);
-
-            break;
-        }
-
-        case STATUS_RUN:
-        {
-            const int frameCount = 5;
-
-            animationFrame++;
-
-            if (animationFrame >= frameCount)
-                animationFrame = 0;
-
-            drawFrame(runFrames[animationFrame]);
-
-            break;
-        }
-
-        case STATUS_TWIST:
-        {
-            const int frameCount = 4;
-
-            animationFrame++;
-
-            if (animationFrame >= frameCount)
-                animationFrame = 0;
-
-            drawFrame(twistFrames[animationFrame]);
-
-            break;
-        }
-
+    int frameIndex = 0;
+    int amt = 10;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(idleFrames[frameIndex]);
+    delay(90);
     }
 }
 
+void drawReceived()
+{
+    int frameIndex = 0;
+    int amt = 12;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(recieveFrames[frameIndex]);
+    delay(90);
+    }
+}
+
+
+void drawSaved()
+{
+    int frameIndex = 0;
+    int amt = 9;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(savedFrames[frameIndex]);
+    delay(90);
+    }
+}
+
+
+void drawPosting()
+{
+    int frameIndex = 0;
+    int amt = 11;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(postingFrames[frameIndex]);
+    delay(90);
+    }
+}
+
+
+void drawPosted()
+{
+    int frameIndex = 0;
+    int amt = 11;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(postedFrames[frameIndex]);
+    delay(90);
+    }
+}
+
+
+void drawSleeping()
+{
+    int frameIndex = 0;
+    int amt = 16;
+    int loop = amt * 4;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(sleepingFrames[frameIndex]);
+    delay(90);
+    }
+}
+
+
+void drawError()
+{
+    int frameIndex = 0;
+    int amt = 10;
+    int loop = amt * 2;
+    for(int i=0;i<loop;i++){
+    frameIndex = i % amt;
+    drawFrame(errorFrames[frameIndex]);
+    delay(90);
+    }
+}
 
 // --------------------------------------------------
 // Main Loop
@@ -323,8 +364,47 @@ void updateAnimation()
 
 void loop()
 {
+    // Pick up anything waiting on serial
     readSerial();
-    updateAnimation();
-}
 
+    // If there is a queued status, play it
+    uint8_t nextStatus;
+
+    if (dequeueStatus(nextStatus))
+    {
+        currentStatus = nextStatus;
+        lastStatus = currentStatus;
+
+        switch (currentStatus)
+        {
+            case STATUS_IDLE:
+                drawIdle();
+                break;
+
+            case STATUS_RECEIVED:
+                drawReceived();
+                break;
+
+            case STATUS_SAVED:
+                drawSaved();
+                break;
+
+            case STATUS_POSTING:
+                drawPosting();
+                break;
+
+            case STATUS_POSTED:
+                drawPosted();
+                break;
+
+            case STATUS_SLEEPING:
+                drawSleeping();
+                break;
+
+            case STATUS_ERROR:
+                drawError();
+                break;
+        }
+    }
+}
 

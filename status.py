@@ -9,9 +9,13 @@ HEADER_2 = 0x55
 
 MSG_STATUS = 0x01
 
-STATUS_IDLE= 0x00
-STATUS_RUN = 0x01
-STATUS_TWIST= 0x02
+STATUS_IDLE = 0x00
+STATUS_RECEIVED = 0x01
+STATUS_SAVED = 0x02
+STATUS_POSTING = 0x03
+STATUS_POSTED = 0x04
+STATUS_SLEEPING = 0x05
+STATUS_ERROR = 0x06
 
 
 ser = serial.Serial(SERIAL_PORT, BAUD)
@@ -36,9 +40,13 @@ def send_status(status):
 
 
 states = [
-    ("RUN", STATUS_IDLE),
-    ("JUMP", STATUS_RUN),
-    ("TWIST", STATUS_TWIST),
+    ("RECEIVED", STATUS_RECEIVED),
+    ("SAVED", STATUS_SAVED),
+    ("POSTING", STATUS_POSTING),
+    ("POSTED", STATUS_POSTED),
+    ("SLEEPING", STATUS_SLEEPING),
+    ("ERROR", STATUS_ERROR),
+    ("IDLE", STATUS_IDLE),
 ]
 
 
@@ -50,7 +58,7 @@ try:
 
             send_status(status)
 
-            time.sleep(6)
+            time.sleep(5)
 
 finally:
     ser.close()
